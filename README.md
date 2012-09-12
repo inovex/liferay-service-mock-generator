@@ -1,0 +1,2 @@
+liferay-service-mock-generator
+==============================
