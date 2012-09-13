@@ -26,6 +26,12 @@ import com.sun.codemodel.JCodeModel;
 public class LiferayServiceMockGenerator {
 
 	Logger LOG = LoggerFactory.getLogger(LiferayServiceMockGenerator.class);
+	
+	private File target;
+	
+	public LiferayServiceMockGenerator(File targetFolder){
+		target = targetFolder;
+	}
 
 	public void generateServiceMocks() throws ZipException, IOException,
 			JClassAlreadyExistsException, ClassNotFoundException {
@@ -40,9 +46,10 @@ public class LiferayServiceMockGenerator {
 			throws IOException, JClassAlreadyExistsException,
 			ClassNotFoundException {
 		JCodeModel codeModel = new JCodeModel();
-		ServiceMockCodeGenerator serviceMockCodeGenerator = new ServiceMockCodeGenerator(classInfo, codeModel);
+		ServiceMockCodeGenerator serviceMockCodeGenerator = new ServiceMockCodeGenerator(
+				classInfo, codeModel);
 		serviceMockCodeGenerator.generateMethods();
-		codeModel.build(new File("/home/andy/test/generated"));
+		codeModel.build(target);
 	}
 
 	private Collection<ClassInfo> findServiceDefinitions() throws ZipException,
@@ -61,15 +68,16 @@ public class LiferayServiceMockGenerator {
 
 		finder.findClasses(serviceDefinitions, new AndClassFilter(classFilter,
 				new InterfaceOnlyClassFilter()));
-		
+
 		return serviceDefinitions;
 	}
-	
-	private Collection<ClassInfo> removeClassesWithSuperclasses(Collection<ClassInfo> allClasses){
+
+	private Collection<ClassInfo> removeClassesWithSuperclasses(
+			Collection<ClassInfo> allClasses) {
 		Iterator<ClassInfo> it = allClasses.iterator();
 		while (it.hasNext()) {
 			ClassInfo classInfo = it.next();
-			if(!StringUtils.isEmpty(classInfo.getSuperClassName())){
+			if (!StringUtils.isEmpty(classInfo.getSuperClassName())) {
 				it.remove();
 			}
 		}
@@ -118,8 +126,28 @@ public class LiferayServiceMockGenerator {
 	 */
 	public static void main(String[] args) throws ZipException, IOException,
 			JClassAlreadyExistsException, ClassNotFoundException {
-		LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator();
-		generator.generateServiceMocks();
+		if(args != null && args.length == 1){
+			String targetFolder = args[0];
+			File targetDirectory = new File(targetFolder);
+			if(targetDirectory.exists()){					
+				if(targetDirectory.isDirectory()){
+					if(targetDirectory.canWrite()){
+						LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator(targetDirectory);
+						generator.generateServiceMocks();
+					} else {
+						System.out.println("Can not write to " + targetFolder);
+						System.exit(0);
+					}
+				} else {
+					System.out.println(targetFolder + " is not a folder");
+					System.exit(0);
+				}
+			} else {
+				System.out.println("Folder: " + targetFolder + " does not exist");
+				System.exit(0);
+			}
+		} else {
+			System.out.println("Target parameter missing");
+		}
 	}
-
 }
