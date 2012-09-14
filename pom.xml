@@ -8,6 +8,7 @@
 
 	<properties>
 		<liferay.version>6.1.1</liferay.version>
+		<spring.version>3.1.0.RELEASE</spring.version>
 	</properties>
 
 	<build>
@@ -42,10 +43,39 @@
 					</arguments>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+					<execution>
+						<phase>process-classes</phase>
+						<configuration>
+							<tasks>
+								<copy
+									todir="${generatorTarget}/src/main/java/de/inovex/liferay/servicemock">
+									<fileset
+										dir="${basedir}/src/main/java/de/inovex/liferay/servicemock"
+										includes="**/*" />
+								</copy>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+
+			</plugin>
 		</plugins>
 	</build>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-core</artifactId>
+			<version>${spring.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>

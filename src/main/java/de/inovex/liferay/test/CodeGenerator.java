@@ -13,7 +13,7 @@ import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JMethod;
 import com.sun.codemodel.JMod;
 
-public class ServiceMockCodeGenerator {
+public class CodeGenerator {
 
 	private ClassInfo classInfo;
 
@@ -23,35 +23,37 @@ public class ServiceMockCodeGenerator {
 	
 	private JMethod jMethod;
 	
-	private Class<?> clazz;
+	private Class<?> implementedInterface;
+	
+	private String generatedClassName;
 
 	private boolean methodsGenerated = false;
 
-	Logger LOG = LoggerFactory.getLogger(ServiceMockCodeGenerator.class);
+	Logger LOG = LoggerFactory.getLogger(CodeGenerator.class);
 
-	public ServiceMockCodeGenerator(ClassInfo classInfo, JCodeModel codeModel) {
+	public CodeGenerator(ClassInfo classInfo, JCodeModel codeModel) {
 		this.classInfo = classInfo;
 		this.codeModel = codeModel;
 	}
 
-	public Class<?> getClassToImplement() {
-		if (clazz == null) {
+	private void generateClass() {
+		if (jDefinedClass == null) {
 			try {
-				jDefinedClass = codeModel._class(classInfo.getClassName()
-						.replace("LocalService", "LocalServiceMock"));
-				this.clazz = Class.forName(classInfo.getClassName());
-				jDefinedClass._implements(this.clazz);
+				String className = classInfo.getClassName().replace("LocalService", "LocalServiceMock");
+				jDefinedClass = codeModel._class(className);
+				this.implementedInterface = Class.forName(classInfo.getClassName());
+				jDefinedClass._implements(this.implementedInterface);
+				this.generatedClassName = className;
 			} catch (Exception e) {
 				throw new CodeGeneratorException(e);
 			}
 		}
-		return clazz;
 	}
 
-	public void generateMethods() {
+	public void generateClassAndMethods() {
 		if (!methodsGenerated) {
-			this.clazz = getClassToImplement();
-			List<Method> methods = ClassUtils.getAllMethods(this.clazz);
+			generateClass();
+			List<Method> methods = ClassUtils.getAllMethods(this.implementedInterface);
 			UniqueMethodList uniqueMethodList = new UniqueMethodList();
 			for (Method method : methods) {
 				boolean aded = uniqueMethodList.add(method);
@@ -94,6 +96,14 @@ public class ServiceMockCodeGenerator {
 		for(Class<?> c : _method.getExceptionTypes()){
 			jMethod._throws((Class<? extends Throwable>)c);
 		}
+	}
+
+	public String getGeneratedClassName() {
+		return generatedClassName;
+	}
+	
+	public String getImplementedInterfaceClassName() {
+		return this.classInfo.getClassName();
 	}
 
 }

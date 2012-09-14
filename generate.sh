@@ -1,8 +1,8 @@
 #!/bin/bash
 if [ $# -ne 1 ]; then
-    echo "Mööööp"
+    echo "Usage: generate.sh /target/folder"
 else 
-    mvn exec:exec -DgeneratorTarget="$1"
+    mvn clean package exec:exec -DgeneratorTarget="$1"
 fi 
 
 

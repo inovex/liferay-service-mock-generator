@@ -1,12 +1,15 @@
 package de.inovex.liferay.test;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.zip.ZipException;
 
@@ -32,6 +35,8 @@ public class LiferayServiceMockGenerator {
 	
 	private File target;
 	
+	private Properties generatedServiceProperties = new Properties();
+	
 	public LiferayServiceMockGenerator(File targetFolder){
 		target = targetFolder;
 	}
@@ -39,6 +44,7 @@ public class LiferayServiceMockGenerator {
 	public void generate() throws ZipException, IOException, JClassAlreadyExistsException, ClassNotFoundException{
 		this.generateServiceMocks();
 		this.createMavenProject();
+		this.writeServiceProperties();
 	}
 
 	private void generateServiceMocks() throws ZipException, IOException,
@@ -46,7 +52,7 @@ public class LiferayServiceMockGenerator {
 		Collection<ClassInfo> serviceDefinitions = findServiceDefinitions();
 		for (ClassInfo liferayService : serviceDefinitions) {
 			LOG.debug(liferayService.getClassName());
-			generateServiceMockImplemetation(liferayService);
+			generateServiceMock(liferayService);
 		}
 	}
 	
@@ -54,14 +60,24 @@ public class LiferayServiceMockGenerator {
 		InputStream stream = this.getClass().getResourceAsStream("/pom.xml");
 		IOUtils.copy(stream, FileUtils.openOutputStream(new File(target ,"pom.xml")));
 	}
+	
+	private void writeServiceProperties() throws IOException{
+		File propertyTarget = new File(target, "src/main/resources/service.properties");
+		propertyTarget.getParentFile().mkdirs();
+		OutputStream out = new BufferedOutputStream( new FileOutputStream(propertyTarget));
+		this.generatedServiceProperties.store(out, "Interfaces and their mock implementations");
+		out.flush();
+		out.close();
+	}
 
-	private void generateServiceMockImplemetation(ClassInfo classInfo)
+	private void generateServiceMock(ClassInfo classInfo)
 			throws IOException, JClassAlreadyExistsException,
 			ClassNotFoundException {
 		JCodeModel codeModel = new JCodeModel();
-		ServiceMockCodeGenerator serviceMockCodeGenerator = new ServiceMockCodeGenerator(
+		CodeGenerator codeGenerator = new CodeGenerator(
 				classInfo, codeModel);
-		serviceMockCodeGenerator.generateMethods();
+		codeGenerator.generateClassAndMethods();
+		this.generatedServiceProperties.setProperty(codeGenerator.getImplementedInterfaceClassName(), codeGenerator.getGeneratedClassName());
 		File javaSourceFolder = new File(target, "src/main/java");
 		if(!javaSourceFolder.exists()){
 			javaSourceFolder.mkdirs();
@@ -87,18 +103,6 @@ public class LiferayServiceMockGenerator {
 				new InterfaceOnlyClassFilter()));
 
 		return serviceDefinitions;
-	}
-
-	private Collection<ClassInfo> removeClassesWithSuperclasses(
-			Collection<ClassInfo> allClasses) {
-		Iterator<ClassInfo> it = allClasses.iterator();
-		while (it.hasNext()) {
-			ClassInfo classInfo = it.next();
-			if (!StringUtils.isEmpty(classInfo.getSuperClassName())) {
-				it.remove();
-			}
-		}
-		return allClasses;
 	}
 
 	private Collection<String> findLiferayPortalFiles()
@@ -133,6 +137,26 @@ public class LiferayServiceMockGenerator {
 		return StringUtils.containsIgnoreCase(libName, "portal")
 				&& StringUtils.containsIgnoreCase(libName, "impl");
 	}
+	
+	private static boolean isTargetValid(String targetFolder){
+		File targetDirectory = new File(targetFolder);
+		if(targetDirectory.exists()){					
+			if(targetDirectory.isDirectory()){
+				if(targetDirectory.canWrite()){					
+					return true;
+				} else {
+					System.out.println("Can not write to " + targetFolder);
+					return false;
+				}
+			} else {
+				System.out.println(targetFolder + " is not a folder");
+				return false;
+			}
+		} else {
+			System.out.println("Folder: " + targetFolder + " does not exist");
+			return false;
+		}
+	}
 
 	/**
 	 * @param args
@@ -145,23 +169,9 @@ public class LiferayServiceMockGenerator {
 			JClassAlreadyExistsException, ClassNotFoundException {
 		if(args != null && args.length == 1){
 			String targetFolder = args[0];
-			File targetDirectory = new File(targetFolder);
-			if(targetDirectory.exists()){					
-				if(targetDirectory.isDirectory()){
-					if(targetDirectory.canWrite()){
-						LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator(targetDirectory);
-						generator.generate();
-					} else {
-						System.out.println("Can not write to " + targetFolder);
-						System.exit(0);
-					}
-				} else {
-					System.out.println(targetFolder + " is not a folder");
-					System.exit(0);
-				}
-			} else {
-				System.out.println("Folder: " + targetFolder + " does not exist");
-				System.exit(0);
+			if(isTargetValid(targetFolder)){
+				LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator(new File(targetFolder));
+				generator.generate();
 			}
 		} else {
 			System.out.println("Target parameter missing");
