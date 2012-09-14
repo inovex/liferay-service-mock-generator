@@ -3,12 +3,15 @@ package de.inovex.liferay.test;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.util.zip.ZipException;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.clapper.util.classutil.AndClassFilter;
 import org.clapper.util.classutil.ClassFilter;
@@ -32,14 +35,24 @@ public class LiferayServiceMockGenerator {
 	public LiferayServiceMockGenerator(File targetFolder){
 		target = targetFolder;
 	}
+	
+	public void generate() throws ZipException, IOException, JClassAlreadyExistsException, ClassNotFoundException{
+		this.generateServiceMocks();
+		this.createMavenProject();
+	}
 
-	public void generateServiceMocks() throws ZipException, IOException,
+	private void generateServiceMocks() throws ZipException, IOException,
 			JClassAlreadyExistsException, ClassNotFoundException {
 		Collection<ClassInfo> serviceDefinitions = findServiceDefinitions();
 		for (ClassInfo liferayService : serviceDefinitions) {
 			LOG.debug(liferayService.getClassName());
 			generateServiceMockImplemetation(liferayService);
 		}
+	}
+	
+	private void createMavenProject() throws IOException{
+		InputStream stream = this.getClass().getResourceAsStream("/pom.xml");
+		IOUtils.copy(stream, FileUtils.openOutputStream(new File(target ,"pom.xml")));
 	}
 
 	private void generateServiceMockImplemetation(ClassInfo classInfo)
@@ -49,7 +62,11 @@ public class LiferayServiceMockGenerator {
 		ServiceMockCodeGenerator serviceMockCodeGenerator = new ServiceMockCodeGenerator(
 				classInfo, codeModel);
 		serviceMockCodeGenerator.generateMethods();
-		codeModel.build(target);
+		File javaSourceFolder = new File(target, "src/main/java");
+		if(!javaSourceFolder.exists()){
+			javaSourceFolder.mkdirs();
+		}
+		codeModel.build(javaSourceFolder);
 	}
 
 	private Collection<ClassInfo> findServiceDefinitions() throws ZipException,
@@ -133,7 +150,7 @@ public class LiferayServiceMockGenerator {
 				if(targetDirectory.isDirectory()){
 					if(targetDirectory.canWrite()){
 						LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator(targetDirectory);
-						generator.generateServiceMocks();
+						generator.generate();
 					} else {
 						System.out.println("Can not write to " + targetFolder);
 						System.exit(0);

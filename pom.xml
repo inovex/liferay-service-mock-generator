@@ -6,6 +6,10 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Liferay ServiceMock Generator</name>
 
+	<properties>
+		<liferay.version>6.1.1</liferay.version>
+	</properties>
+
 	<build>
 		<plugins>
 			<plugin>
@@ -32,19 +36,25 @@
 					<executable>java</executable>
 					<arguments>
 						<argument>-classpath</argument>
-						<classpath/>													
+						<classpath />
 						<argument>de.inovex.liferay.test.LiferayServiceMockGenerator</argument>
-						<argument>${generatorTarget}</argument>					
+						<argument>${generatorTarget}</argument>
 					</arguments>
 				</configuration>
 			</plugin>
 		</plugins>
 	</build>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>3.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>1.3.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.clapper</groupId>
@@ -54,7 +64,7 @@
 		<dependency>
 			<groupId>com.liferay.portal</groupId>
 			<artifactId>portal-service</artifactId>
-			<version>6.1.1</version>
+			<version>${liferay.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.sun.xml.bind</groupId>
@@ -64,7 +74,7 @@
 		<dependency>
 			<groupId>com.liferay.portal</groupId>
 			<artifactId>portal-impl</artifactId>
-			<version>6.1.1</version>
+			<version>${liferay.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
