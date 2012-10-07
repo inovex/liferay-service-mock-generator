@@ -1,4 +1,4 @@
-package de.inovex.liferay.test;
+package de.inovex.liferay.mockgenerator;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.zip.ZipException;
@@ -32,17 +33,23 @@ import com.sun.codemodel.JCodeModel;
 public class LiferayServiceMockGenerator {
 
 	Logger LOG = LoggerFactory.getLogger(LiferayServiceMockGenerator.class);
-	
+
 	private File target;
-	
+
 	private Properties generatedServiceProperties = new Properties();
-	
-	public LiferayServiceMockGenerator(File targetFolder){
+
+	private UniqueClassList parameterAndReturnValues = new UniqueClassList("com.liferay");
+
+	private ClassFinder classFinder = null;
+
+	public LiferayServiceMockGenerator(File targetFolder) {
 		target = targetFolder;
 	}
-	
-	public void generate() throws ZipException, IOException, JClassAlreadyExistsException, ClassNotFoundException{
+
+	public void generate() throws ZipException, IOException,
+			JClassAlreadyExistsException, ClassNotFoundException {
 		this.generateServiceMocks();
+		this.generateMockObjects();
 		this.createMavenProject();
 		this.writeServiceProperties();
 	}
@@ -52,34 +59,62 @@ public class LiferayServiceMockGenerator {
 		Collection<ClassInfo> serviceDefinitions = findServiceDefinitions();
 		for (ClassInfo liferayService : serviceDefinitions) {
 			LOG.debug(liferayService.getClassName());
-			generateServiceMock(liferayService);
+			generatServiceeMocks(liferayService);
 		}
 	}
-	
-	private void createMavenProject() throws IOException{
-		InputStream stream = this.getClass().getResourceAsStream("/pom.xml");
-		IOUtils.copy(stream, FileUtils.openOutputStream(new File(target ,"pom.xml")));
+
+	private void generateMockObjects() throws ClassNotFoundException,
+			IOException, JClassAlreadyExistsException {
+		List<ClassInfo> classInfos = getClassInfoFor(parameterAndReturnValues.getClasses());
+		for (ClassInfo classInfo : classInfos) {
+			generateMockObjects(classInfo);
+		}
 	}
-	
-	private void writeServiceProperties() throws IOException{
-		File propertyTarget = new File(target, "src/main/resources/service.properties");
+
+	private void createMavenProject() throws IOException {
+		InputStream stream = this.getClass().getResourceAsStream("/pom.xml");
+		IOUtils.copy(stream,
+				FileUtils.openOutputStream(new File(target, "pom.xml")));
+	}
+
+	private void writeServiceProperties() throws IOException {
+		File propertyTarget = new File(target,
+				"src/main/resources/service.properties");
 		propertyTarget.getParentFile().mkdirs();
-		OutputStream out = new BufferedOutputStream( new FileOutputStream(propertyTarget));
-		this.generatedServiceProperties.store(out, "Interfaces and their mock implementations");
+		OutputStream out = new BufferedOutputStream(new FileOutputStream(
+				propertyTarget));
+		this.generatedServiceProperties.store(out,
+				"Interfaces and their mock implementations");
 		out.flush();
 		out.close();
 	}
 
-	private void generateServiceMock(ClassInfo classInfo)
-			throws IOException, JClassAlreadyExistsException,
-			ClassNotFoundException {
+	private void generatServiceeMocks(ClassInfo classInfo) throws IOException,
+			JClassAlreadyExistsException, ClassNotFoundException {
 		JCodeModel codeModel = new JCodeModel();
-		CodeGenerator codeGenerator = new CodeGenerator(
+		ServiceMockGenerator codeGenerator = new ServiceMockGenerator(
 				classInfo, codeModel);
 		codeGenerator.generateClassAndMethods();
-		this.generatedServiceProperties.setProperty(codeGenerator.getImplementedInterfaceClassName(), codeGenerator.getGeneratedClassName());
+		this.parameterAndReturnValues.addAll(codeGenerator
+				.getClassesUsedAsParameterOrReturnValue());
+		this.generatedServiceProperties.setProperty(
+				codeGenerator.getImplementedInterfaceClassName(),
+				codeGenerator.getGeneratedClassName());
+		build(codeModel);
+	}
+
+	private void generateMockObjects(ClassInfo classInfo) throws IOException,
+			JClassAlreadyExistsException, ClassNotFoundException {
+		JCodeModel codeModel = new JCodeModel();
+		MockObjectGenerator codeGenerator = new MockObjectGenerator(classInfo,
+				codeModel);
+		codeGenerator.generateClassAndMethods();
+		build(codeModel);
+	}
+
+	private void build(JCodeModel codeModel) throws IOException {
 		File javaSourceFolder = new File(target, "src/main/java");
-		if(!javaSourceFolder.exists()){
+		if (!javaSourceFolder.exists()) {
 			javaSourceFolder.mkdirs();
 		}
 		codeModel.build(javaSourceFolder);
@@ -88,21 +123,39 @@ public class LiferayServiceMockGenerator {
 	private Collection<ClassInfo> findServiceDefinitions() throws ZipException,
 			IOException {
 		ArrayList<ClassInfo> serviceDefinitions = new ArrayList<ClassInfo>();
-		ClassFinder finder = new ClassFinder();
-		for (String liferayPortalImplFile : findLiferayPortalFiles()) {
-
-			LOG.info("Liferay portal Impl file: " + liferayPortalImplFile);
-			File classpathFile = new File(liferayPortalImplFile);
-			finder.add(classpathFile);
-		}
 
 		ClassFilter classFilter = new SubclassClassFilter(
 				PersistedModelLocalService.class);
-
-		finder.findClasses(serviceDefinitions, new AndClassFilter(classFilter,
-				new InterfaceOnlyClassFilter()));
+		getClassFinder()
+				.findClasses(
+						serviceDefinitions,
+						new AndClassFilter(classFilter,
+								new InterfaceOnlyClassFilter()));
 
 		return serviceDefinitions;
+	}
+
+	private List<ClassInfo> getClassInfoFor(Collection<Class<?>> clazzes)
+			throws FileNotFoundException, ClassNotFoundException {
+		ClassMatchFilter classMatchFilter = new ClassMatchFilter(clazzes);
+		AndClassFilter andClassFilter = new AndClassFilter(
+				new InterfaceOnlyClassFilter(), classMatchFilter);
+		ArrayList<ClassInfo> classInfoList = new ArrayList<ClassInfo>();
+		getClassFinder().findClasses(classInfoList, andClassFilter);
+		return classInfoList;
+	}
+
+	public ClassFinder getClassFinder() throws FileNotFoundException {
+		if (this.classFinder == null) {
+			classFinder = new ClassFinder();
+			for (String liferayPortalImplFile : findLiferayPortalFiles()) {
+
+				LOG.info("Liferay portal Impl file: " + liferayPortalImplFile);
+				File classpathFile = new File(liferayPortalImplFile);
+				classFinder.add(classpathFile);
+			}
+		}
+		return classFinder;
 	}
 
 	private Collection<String> findLiferayPortalFiles()
@@ -137,12 +190,12 @@ public class LiferayServiceMockGenerator {
 		return StringUtils.containsIgnoreCase(libName, "portal")
 				&& StringUtils.containsIgnoreCase(libName, "impl");
 	}
-	
-	private static boolean isTargetValid(String targetFolder){
+
+	private static boolean isTargetValid(String targetFolder) {
 		File targetDirectory = new File(targetFolder);
-		if(targetDirectory.exists()){					
-			if(targetDirectory.isDirectory()){
-				if(targetDirectory.canWrite()){					
+		if (targetDirectory.exists()) {
+			if (targetDirectory.isDirectory()) {
+				if (targetDirectory.canWrite()) {
 					return true;
 				} else {
 					System.out.println("Can not write to " + targetFolder);
@@ -167,10 +220,11 @@ public class LiferayServiceMockGenerator {
 	 */
 	public static void main(String[] args) throws ZipException, IOException,
 			JClassAlreadyExistsException, ClassNotFoundException {
-		if(args != null && args.length == 1){
+		if (args != null && args.length == 1) {
 			String targetFolder = args[0];
-			if(isTargetValid(targetFolder)){
-				LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator(new File(targetFolder));
+			if (isTargetValid(targetFolder)) {
+				LiferayServiceMockGenerator generator = new LiferayServiceMockGenerator(
+						new File(targetFolder));
 				generator.generate();
 			}
 		} else {

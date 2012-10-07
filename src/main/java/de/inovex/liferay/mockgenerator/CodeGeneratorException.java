@@ -1,4 +1,4 @@
-package de.inovex.liferay.test;
+package de.inovex.liferay.mockgenerator;
 
 public class CodeGeneratorException extends RuntimeException{
 

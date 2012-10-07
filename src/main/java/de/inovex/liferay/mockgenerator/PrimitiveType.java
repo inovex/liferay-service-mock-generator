@@ -1,4 +1,4 @@
-package de.inovex.liferay.test;
+package de.inovex.liferay.mockgenerator;
 
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JExpr;

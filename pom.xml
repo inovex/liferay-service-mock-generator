@@ -38,7 +38,7 @@
 					<arguments>
 						<argument>-classpath</argument>
 						<classpath />
-						<argument>de.inovex.liferay.test.LiferayServiceMockGenerator</argument>
+						<argument>de.inovex.liferay.mockgenerator.LiferayServiceMockGenerator</argument>
 						<argument>${generatorTarget}</argument>
 					</arguments>
 				</configuration>
