@@ -12,6 +12,8 @@ import java.util.List;
 import org.clapper.util.classutil.ClassInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
+import org.springframework.core.ParameterNameDiscoverer;
 
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
@@ -39,6 +41,8 @@ public class ServiceMockGenerator {
 	protected boolean methodsGenerated = false;
 	
 	protected UniqueClassList uniqueClassList = new UniqueClassList();
+	
+	private ParameterNameDiscoverer parameterNameDiscoverer = new LocalVariableTableParameterNameDiscoverer();
 
 	Logger LOG = LoggerFactory.getLogger(ServiceMockGenerator.class);
 
@@ -88,7 +92,34 @@ public class ServiceMockGenerator {
 	private void implementMethod(MethodClassTuple methodClassTuple) {		
 		Method _method = methodClassTuple.getMethod();
 		Class<?> returnType = _method.getReturnType();
-		jMethod = this.jDefinedClass.method(JMod.PUBLIC, returnType, _method.getName());
+		Type genericReturnType = _method.getGenericReturnType();
+		JType jType = null;
+		if(genericReturnType instanceof TypeVariable){
+			TypeVariable<?> typeVariable = (TypeVariable<?>) genericReturnType;
+			if("T".equals(typeVariable.getName())){
+				jType = this.codeModel.ref(methodClassTuple.getGenericT());
+			}
+		} else if(genericReturnType instanceof ParameterizedType){
+			ParameterizedType parameterizedType = (ParameterizedType) genericReturnType;
+			Class<?> c = (Class<?>) parameterizedType.getRawType();
+			JClass rawLLclazz = this.codeModel.ref(c);
+			List<JClass> generics = convert(parameterizedType.getActualTypeArguments(), rawLLclazz);
+			jType = rawLLclazz.narrow(generics); 
+		} else if(genericReturnType instanceof GenericArrayType){ 
+			GenericArrayType genericArrayType = (GenericArrayType) genericReturnType;
+			if(((Class<?>)genericArrayType.getGenericComponentType()).isPrimitive()){
+				jType = JPrimitiveType.parse(this.codeModel, genericArrayType.getGenericComponentType().toString()).array();
+			} else {
+				jType = this.codeModel.ref((Class<?>)genericArrayType.getGenericComponentType()).array();
+			}
+		} else {
+			if(returnType.isPrimitive()){
+				jType = JPrimitiveType.parse(this.codeModel, returnType.getSimpleName());
+			} else {
+				jType = this.codeModel.ref(returnType);
+			}
+		}
+		jMethod = this.jDefinedClass.method(JMod.PUBLIC, jType, _method.getName());
 		if(!returnType.equals(Void.TYPE)){
 			if(returnType.isPrimitive()){
 				jMethod.body()._return(PrimitiveType.valueOf(returnType, this.codeModel).getDefaultReturnValue());
@@ -102,6 +133,7 @@ public class ServiceMockGenerator {
 
 	private void addParameter(MethodClassTuple methodClassTuple) {
 		int i = 0;
+		String[] parameterNames = parameterNameDiscoverer.getParameterNames(methodClassTuple.getMethod()); 
 		for(Type type : methodClassTuple.getMethod().getGenericParameterTypes()){
 			Class<?> c = null;
 			JType jType = null;
@@ -127,10 +159,16 @@ public class ServiceMockGenerator {
 			} else {
 				c = (Class<?>) type;
 			}
-			if(jType == null){
-				jMethod.param(c, "param" + i);
+			String parameterName = null;
+			if(parameterNames != null){
+				parameterName = parameterNames[i];
 			} else {
-				jMethod.param(jType, "param" + i);
+				parameterName = "param" + i;
+			}
+			if(jType == null){
+				jMethod.param(c, parameterName);
+			} else {
+				jMethod.param(jType, parameterName);
 			}
 			i++;
 		}
