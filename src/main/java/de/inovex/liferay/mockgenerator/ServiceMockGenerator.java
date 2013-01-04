@@ -9,12 +9,15 @@ import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.clapper.util.classutil.ClassInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
 import org.springframework.core.ParameterNameDiscoverer;
+import org.springframework.util.ReflectionUtils;
 
+import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JDefinedClass;
@@ -29,6 +32,8 @@ public class ServiceMockGenerator {
 	protected ClassInfo classInfo;
 
 	protected JCodeModel codeModel;
+	
+	protected boolean generateMockClass;
 
 	protected JDefinedClass jDefinedClass;
 	
@@ -47,8 +52,13 @@ public class ServiceMockGenerator {
 	Logger LOG = LoggerFactory.getLogger(ServiceMockGenerator.class);
 
 	public ServiceMockGenerator(ClassInfo classInfo, JCodeModel codeModel) {
+		this(classInfo, codeModel, true);
+	}
+	
+	public ServiceMockGenerator(ClassInfo classInfo, JCodeModel codeModel, boolean generateMockClass) {
 		this.classInfo = classInfo;
 		this.codeModel = codeModel;
+		this.generateMockClass = generateMockClass;
 	}
 
 	private void generateClass() {
@@ -120,15 +130,93 @@ public class ServiceMockGenerator {
 			}
 		}
 		jMethod = this.jDefinedClass.method(JMod.PUBLIC, jType, _method.getName());
-		if(!returnType.equals(Void.TYPE)){
-			if(returnType.isPrimitive()){
-				jMethod.body()._return(PrimitiveType.valueOf(returnType, this.codeModel).getDefaultReturnValue());
-			} else {
-				jMethod.body()._return(JExpr._null());
-			}
-		}
+		
 		addParameter(methodClassTuple);
 		addExceptions(_method);
+		
+		if(!returnType.equals(Void.TYPE)){
+			if(isAddServiceObjectMethod(methodClassTuple)){
+				implementAddServiceObjectMethod(jMethod, methodClassTuple);
+			} else if(isGetServiceObjectMethod(methodClassTuple)){ 
+				implementGetServiceObjectMethod(jMethod, methodClassTuple);
+			} else {
+				if(returnType.isPrimitive()){
+					jMethod.body()._return(PrimitiveType.valueOf(returnType, this.codeModel).getDefaultReturnValue());
+				} else {
+					jMethod.body()._return(JExpr._null());
+				}
+			}
+		}
+	}
+	
+	private String getServiceObjectName(MethodClassTuple methodClassTuple){
+		if(classInfo.getClassName().endsWith("LocalService")){
+			String serviceObjectName = classInfo.getClassName().replace("LocalService", "");
+			int index = classInfo.getClassName().replace("LocalService", "").lastIndexOf(".");
+			return serviceObjectName.substring(index+1);
+			
+		}
+		return null;
+	}
+	
+	private boolean isAddServiceObjectMethod(MethodClassTuple methodClassTuple){
+		if(classInfo.getClassName().endsWith("LocalService")){
+			boolean isAddMethod = StringUtils.equals("add" + getServiceObjectName(methodClassTuple), methodClassTuple.getMethod().getName());
+			if(isAddMethod && methodClassTuple.getMethod().getGenericParameterTypes().length == 1){
+				Class<?> parameterClass = methodClassTuple.getMethod().getParameterTypes()[0];
+				return parameterClass.getName().startsWith("com.liferay.");
+			}
+		}
+		return false;
+	}
+	
+	private boolean isGetServiceObjectMethod(MethodClassTuple methodClassTuple){
+		if(classInfo.getClassName().endsWith("LocalService")){
+			boolean isGetMethod = StringUtils.equals("get" + getServiceObjectName(methodClassTuple), methodClassTuple.getMethod().getName());
+			boolean isFetchMethod = StringUtils.equals("fetch" + getServiceObjectName(methodClassTuple), methodClassTuple.getMethod().getName());
+			boolean isGetOrFetchMethod = isGetMethod || isFetchMethod;
+			if(isGetOrFetchMethod && methodClassTuple.getMethod().getGenericParameterTypes().length == 1){
+				Class<?> parameterClass = methodClassTuple.getMethod().getParameterTypes()[0];
+				return parameterClass.getName().startsWith("com.liferay.") || parameterClass == long.class;
+			}
+		}
+		return false;
+	}
+	
+	private void implementAddServiceObjectMethod(JMethod jMethod, MethodClassTuple methodClassTuple){
+		LOG.info("Add method for " + classInfo.getClassName() + " : " + methodClassTuple.getMethod().getName());
+		this.codeModel.directClass("java.util.HashMap");
+		JClass hashMapClass = this.codeModel.ref("java.util.HashMap");
+		List<JClass> generics = new ArrayList<JClass>(2);
+		Class<?> serviceObjectClass;
+		try {
+			serviceObjectClass = Class.forName(jMethod.listParams()[0].type().fullName());
+			Method getPrimaryKeyMethod = ReflectionUtils.findMethod(serviceObjectClass, "getPrimaryKey");
+			Class<?> primaryKeyClass = getPrimaryKeyMethod.getReturnType();
+			if(primaryKeyClass.isPrimitive()){
+				primaryKeyClass = PrimitiveType.valueOf(primaryKeyClass, codeModel).getObjectType();
+			}
+			generics.add(this.codeModel.ref(primaryKeyClass));
+			generics.add(this.codeModel.ref(methodClassTuple.getMethod().getParameterTypes()[0]));
+			JClass jType = hashMapClass.narrow(generics); 
+			
+			this.jDefinedClass.field(JMod.PRIVATE, jType, "_serviceObjects", JExpr._new(jType));
+			JBlock block = jMethod.body();
+			String parameterName = jMethod.listParams()[0].name();
+			block.directStatement("_serviceObjects.put(" + parameterName + ".getPrimaryKey(), " + parameterName + ");");
+			
+			block._return(JExpr.ref(parameterName));
+		} catch (ClassNotFoundException e) {
+			LOG.error("Error during generation", e);
+		}
+		
+	}
+	
+	private void implementGetServiceObjectMethod(JMethod jMethod, MethodClassTuple methodClassTuple){
+		LOG.info("Add method for " + classInfo.getClassName() + " : " + methodClassTuple.getMethod().getName());
+		JBlock block = jMethod.body();
+		String parameterName = jMethod.listParams()[0].name();
+		block._return(JExpr.direct("_serviceObjects.get(" + parameterName + ")"));
 	}
 
 	private void addParameter(MethodClassTuple methodClassTuple) {

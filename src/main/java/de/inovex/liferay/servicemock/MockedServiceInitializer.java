@@ -1,5 +1,7 @@
 package de.inovex.liferay.servicemock;
 
+
+import static org.mockito.Mockito.mock;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Enumeration;
@@ -29,7 +31,8 @@ public class MockedServiceInitializer {
 			LOG.debug(object.toString());
 			try {
 				Class<?> utilClass = findLiferayUtilClass(object.toString());
-				setMockedService(utilClass.newInstance(), serviceProperties.get(Class.forName(serviceProperties.getProperty(object.toString())).newInstance()));
+				Class<?> serviceClass = Class.forName(serviceProperties.getProperty(object.toString()));
+				setMockedService(utilClass.newInstance(), mock(serviceClass));
 			} catch (ClassNotFoundException e) {
 				LOG.error("Util class not found for: " + object);
 			}

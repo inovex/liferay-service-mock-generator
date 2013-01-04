@@ -36,7 +36,7 @@ public class LiferayServiceMockGenerator {
 
 	private File target;
 
-	private Properties generatedServiceProperties = new Properties();
+	private Properties servicesToMock = new Properties();
 
 	private UniqueClassList parameterAndReturnValues = new UniqueClassList("com.liferay");
 
@@ -59,7 +59,9 @@ public class LiferayServiceMockGenerator {
 		Collection<ClassInfo> serviceDefinitions = findServiceDefinitions();
 		for (ClassInfo liferayService : serviceDefinitions) {
 			LOG.debug(liferayService.getClassName());
-			generatServiceeMocks(liferayService);
+			this.inspectServiceForMockObjects(liferayService);
+			this.servicesToMock.setProperty(liferayService.getClassName(),
+					liferayService.getClassName());
 		}
 	}
 
@@ -83,13 +85,13 @@ public class LiferayServiceMockGenerator {
 		propertyTarget.getParentFile().mkdirs();
 		OutputStream out = new BufferedOutputStream(new FileOutputStream(
 				propertyTarget));
-		this.generatedServiceProperties.store(out,
+		this.servicesToMock.store(out,
 				"Interfaces and their mock implementations");
 		out.flush();
 		out.close();
 	}
 
-	private void generatServiceeMocks(ClassInfo classInfo) throws IOException,
+	private void inspectServiceForMockObjects(ClassInfo classInfo) throws IOException,
 			JClassAlreadyExistsException, ClassNotFoundException {
 		JCodeModel codeModel = new JCodeModel();
 		ServiceMockGenerator codeGenerator = new ServiceMockGenerator(
@@ -97,7 +99,7 @@ public class LiferayServiceMockGenerator {
 		codeGenerator.generateClassAndMethods();
 		this.parameterAndReturnValues.addAll(codeGenerator
 				.getClassesUsedAsParameterOrReturnValue());
-		this.generatedServiceProperties.setProperty(
+		this.servicesToMock.setProperty(
 				codeGenerator.getImplementedInterfaceClassName(),
 				codeGenerator.getGeneratedClassName());
 		build(codeModel);

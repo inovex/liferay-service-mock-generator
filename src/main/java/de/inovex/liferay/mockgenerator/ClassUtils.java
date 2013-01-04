@@ -7,14 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ClassUtils {
+	
+//	private final static Logger LOG = LoggerFactory.getLogger(ClassUtils.class);
 
-	@SuppressWarnings("rawtypes")
-	public static List<MethodClassTuple> getAllMethods(Class clazz) {
+	public static List<MethodClassTuple> getAllMethods(Class<?> clazz) {
 		ArrayList<MethodClassTuple> allMethods = new ArrayList<MethodClassTuple>();
 		getDeclaredMethods(clazz, allMethods);
 		getInterfaceMethods(clazz.getGenericInterfaces(), allMethods);
 		
-		Class parent = clazz.getSuperclass();
+		Class<?> parent = clazz.getSuperclass();
 		while (parent != null) {
 			getDeclaredMethods(parent, allMethods);
 			parent = parent.getSuperclass();
@@ -42,7 +43,7 @@ public class ClassUtils {
 		Method[] declaredMethods = clazz.getDeclaredMethods();
 		if (declaredMethods != null && declaredMethods.length > 0) {
 			for (Method method : declaredMethods) {
-				methodlist.add(new MethodClassTuple(method, clazz));
+				methodlist.add(new MethodClassTuple(method, clazz));				
 			}
 		}
 		return methodlist;

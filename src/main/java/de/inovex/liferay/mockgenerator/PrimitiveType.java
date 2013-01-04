@@ -7,17 +7,20 @@ import com.sun.codemodel.JType;
 
 public enum PrimitiveType {
 
-	Z("boolean", JExpr.lit(true)), B("byte", null), C("char", JExpr.lit('t')), D(
-			"double", JExpr.lit(0.0)), F("float", JExpr.lit(0)), I("int", JExpr
-			.lit(0)), J("long", JExpr.lit(0)), S("short", null), V("void", null);
+	Z("boolean", JExpr.lit(true), Boolean.class), B("byte", null, Byte.class), C("char", JExpr.lit('t'), Character.class), D(
+			"double", JExpr.lit(0.0), Double.class), F("float", JExpr.lit(0), Float.class), I("int", JExpr
+			.lit(0), Integer.class), J("long", JExpr.lit(0), Long.class), S("short", null, Short.class), V("void", null, Void.class);
 
 	private String value;
 
 	private JExpression defaultReturnValue;
+	
+	private Class<?> objectType;
 
-	private PrimitiveType(String value, JExpression returnValue) {
+	private PrimitiveType(String value, JExpression returnValue, Class<?> objectType) {
 		this.value = value;
 		this.defaultReturnValue = returnValue;
+		this.objectType = objectType;
 	}
 
 	public String getValue() {
@@ -26,6 +29,10 @@ public enum PrimitiveType {
 
 	public JExpression getDefaultReturnValue() {
 		return defaultReturnValue;
+	}
+
+	public Class<?> getObjectType() {
+		return objectType;
 	}
 
 	public static PrimitiveType valueOf(Class<?> primitiveClass, JCodeModel codeModel) {
