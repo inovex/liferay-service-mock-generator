@@ -22,10 +22,15 @@ import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JDefinedClass;
 import com.sun.codemodel.JExpr;
+import com.sun.codemodel.JFieldRef;
+import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JMethod;
 import com.sun.codemodel.JMod;
 import com.sun.codemodel.JPrimitiveType;
 import com.sun.codemodel.JType;
+import com.sun.codemodel.JVar;
+
+import de.inovex.liferay.servicemock.MockService;
 
 public class ServiceMockGenerator {
 
@@ -69,6 +74,16 @@ public class ServiceMockGenerator {
 				this.implementedInterface = Class.forName(classInfo.getClassName());
 				jDefinedClass._implements(this.implementedInterface);
 				this.generatedClassName = className;
+				
+				JClass classToExtend = this.codeModel.ref(MockService.class).narrow(this.implementedInterface);
+				jDefinedClass._extends(classToExtend);
+				
+				JMethod initMockObjectMethod = jDefinedClass.method(JMod.PUBLIC, codeModel.VOID, "initMockObject");
+				JBlock block = initMockObjectMethod.body();
+				
+				block.directStatement("this.setMockObject(org.mockito.Mockito.mock(" + this.implementedInterface.getName() + ".class));");
+				
+				
 			} catch (Exception e) {
 				throw new CodeGeneratorException(e);
 			}
@@ -131,7 +146,7 @@ public class ServiceMockGenerator {
 		}
 		jMethod = this.jDefinedClass.method(JMod.PUBLIC, jType, _method.getName());
 		
-		addParameter(methodClassTuple);
+		List<JVar> params = addParameter(methodClassTuple);
 		addExceptions(_method);
 		
 		if(!returnType.equals(Void.TYPE)){
@@ -140,11 +155,19 @@ public class ServiceMockGenerator {
 			} else if(isGetServiceObjectMethod(methodClassTuple)){ 
 				implementGetServiceObjectMethod(jMethod, methodClassTuple);
 			} else {
-				if(returnType.isPrimitive()){
-					jMethod.body()._return(PrimitiveType.valueOf(returnType, this.codeModel).getDefaultReturnValue());
-				} else {
-					jMethod.body()._return(JExpr._null());
+//				if(returnType.isPrimitive()){
+//					jMethod.body()._return(PrimitiveType.valueOf(returnType, this.codeModel).getDefaultReturnValue());
+//				} else {
+//					jMethod.body()._return(JExpr._null());
+//				}
+				
+				
+				JFieldRef jFieldRef = JExpr._this().ref("mockObject");
+				JInvocation invocation = jFieldRef.invoke(jMethod);
+				for (JVar jVar : params) {
+					invocation.arg(jVar);
 				}
+				jMethod.body()._return(invocation);
 			}
 		}
 	}
@@ -219,12 +242,14 @@ public class ServiceMockGenerator {
 		block._return(JExpr.direct("_serviceObjects.get(" + parameterName + ")"));
 	}
 
-	private void addParameter(MethodClassTuple methodClassTuple) {
+	private List<JVar> addParameter(MethodClassTuple methodClassTuple) {
 		int i = 0;
 		String[] parameterNames = parameterNameDiscoverer.getParameterNames(methodClassTuple.getMethod()); 
+		List<JVar> params = new ArrayList<JVar>();
 		for(Type type : methodClassTuple.getMethod().getGenericParameterTypes()){
 			Class<?> c = null;
 			JType jType = null;
+			JVar paramVar;
 			if(type instanceof TypeVariable){
 				TypeVariable<?> typeVariable = (TypeVariable<?>) type;
 				if("T".equals(typeVariable.getName())){
@@ -254,12 +279,14 @@ public class ServiceMockGenerator {
 				parameterName = "param" + i;
 			}
 			if(jType == null){
-				jMethod.param(c, parameterName);
+				paramVar = jMethod.param(c, parameterName);
 			} else {
-				jMethod.param(jType, parameterName);
+				paramVar = jMethod.param(jType, parameterName);
 			}
+			params.add(paramVar);
 			i++;
 		}
+		return params;
 	}
 	
 	private List<JClass> convert(Type[] parameterTypes, JClass rawLLclazz){

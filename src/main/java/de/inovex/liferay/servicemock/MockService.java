@@ -1,12 +1,20 @@
 package de.inovex.liferay.servicemock;
 
-public abstract class MockService {
+public abstract class MockService<T> {
 
-	public void setReturnValue(Restriction restriction, String... methods){
-		
+	protected T mockObject;
+	
+	public MockService(){
+		initMockObject();
+	}
+
+	public T getMockObject() {
+		return mockObject;
+	}
+
+	public void setMockObject(T mockObject) {
+		this.mockObject = mockObject;
 	}
 	
-	public Object getReturnValue(String method, Restriction restriction){
-		return null;
-	}
+	public abstract void initMockObject();
 }
