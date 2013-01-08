@@ -12,7 +12,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.util.ReflectionUtils;
 
-
+/**
+ * 
+ * @author Andreas Friedel
+ *
+ */
 public class MockedServiceInitializer {
 	
 	private final static Logger LOG = LoggerFactory.getLogger(MockedServiceInitializer.class);
