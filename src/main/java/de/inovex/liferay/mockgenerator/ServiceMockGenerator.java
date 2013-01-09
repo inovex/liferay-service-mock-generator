@@ -303,10 +303,16 @@ public class ServiceMockGenerator {
 				generics.add(genericArray);
 			} else if(genericParameterType instanceof WildcardType){
 				WildcardType wildcardType = (WildcardType) genericParameterType;
+				
+				if(wildcardType.getUpperBounds().length == 1){
+					String name = ((Class<?>) wildcardType.getUpperBounds()[0]).getName();
+				}
+				
 				if (!(wildcardType.getLowerBounds().length == 0
 						&& wildcardType.getUpperBounds().length == 1
 						&& (((Class<?>) wildcardType.getUpperBounds()[0]) == Object.class))){
-					generics.add(rawLLclazz.wildcard());
+//					generics.add(rawLLclazz.wildcard());
+					generics.add(this.codeModel.ref(((Class<?>) wildcardType.getUpperBounds()[0]).getName()).wildcard());
 				} else {
 					generics.add(this.codeModel.ref(Object.class).wildcard());
 				}

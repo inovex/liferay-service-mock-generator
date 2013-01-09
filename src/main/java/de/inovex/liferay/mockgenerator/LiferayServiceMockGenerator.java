@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.liferay.portal.service.PersistedModelLocalService;
+import com.liferay.portal.util.Portal;
 import com.sun.codemodel.JClassAlreadyExistsException;
 import com.sun.codemodel.JCodeModel;
 
@@ -99,6 +100,7 @@ public class LiferayServiceMockGenerator {
 		codeGenerator.generateClassAndMethods();
 		this.parameterAndReturnValues.addAll(codeGenerator
 				.getClassesUsedAsParameterOrReturnValue());
+		this.parameterAndReturnValues.add(Portal.class);
 		this.servicesToMock.setProperty(
 				codeGenerator.getImplementedInterfaceClassName(),
 				codeGenerator.getGeneratedClassName());
