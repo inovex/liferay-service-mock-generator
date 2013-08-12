@@ -61,8 +61,8 @@ public class LiferayServiceMockGenerator {
 		for (ClassInfo liferayService : serviceDefinitions) {
 			LOG.debug(liferayService.getClassName());
 			this.inspectServiceForMockObjects(liferayService);
-			this.servicesToMock.setProperty(liferayService.getClassName(),
-					liferayService.getClassName());
+//			this.servicesToMock.setProperty(liferayService.getClassName(),
+//					liferayService.getClassName());
 		}
 	}
 
@@ -82,7 +82,7 @@ public class LiferayServiceMockGenerator {
 
 	private void writeServiceProperties() throws IOException {
 		File propertyTarget = new File(target,
-				"src/main/resources/service.properties");
+				"src/main/resources/service-mock.properties");
 		propertyTarget.getParentFile().mkdirs();
 		OutputStream out = new BufferedOutputStream(new FileOutputStream(
 				propertyTarget));

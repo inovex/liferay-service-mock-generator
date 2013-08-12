@@ -2,14 +2,14 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.inovex.liferay</groupId>
-	<artifactId>liferay-service-mock</artifactId>
+	<artifactId>service-mock</artifactId>
 	<version>6.1.1-SNAPSHOT</version>
-	<name>Liferay ServiceMock</name>
+	<name>ServiceMocks for Liferay</name>
 	<packaging>jar</packaging>
 
 	<properties>
 		<liferay.version>6.1.1</liferay.version>
-		<spring.version>3.1.0.RELEASE</spring.version>
+		<spring.version>3.2.0.RELEASE</spring.version>
 	</properties>
 
 	<build>
@@ -48,7 +48,7 @@
             <artifactId>spring-test</artifactId>
             <version>${spring.version}</version>
             <scope>test</scope>
-        </dependency>
+        </dependency>        
 		<dependency>
 			<groupId>com.liferay.portal</groupId>
 			<artifactId>portal-service</artifactId>

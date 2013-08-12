@@ -28,7 +28,7 @@ public class MockedServiceInitializer {
 	}
 	
 	public static void initAllMockedServices() throws IOException, InstantiationException, IllegalAccessException{
-		Properties serviceProperties = PropertiesLoaderUtils.loadAllProperties("service.properties");
+		Properties serviceProperties = PropertiesLoaderUtils.loadAllProperties("service-mock.properties");
 		Enumeration<Object> keys = serviceProperties.keys();
 		while (keys.hasMoreElements()) {
 			Object object = keys.nextElement();
